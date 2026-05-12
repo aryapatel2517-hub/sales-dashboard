@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales & Revenue Dashboard | Thiranex Internship</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #1e2130;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #8b90a0;
+    --accent: #4f8ef7;
+    --accent2: #22d3a5;
+    --warn: #f5a623;
+    --danger: #e85d6a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; }
+  .logo-dot { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .badge-intern { background: rgba(79,142,247,0.15); color: var(--accent); border: 1px solid rgba(79,142,247,0.3); font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+
+  /* ── MAIN ── */
+  .main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+
+  /* ── IMPORT BAR ── */
+  .import-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .import-label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+  .imp-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    transition: all .15s;
+  }
+  .imp-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .imp-btn.active { background: rgba(79,142,247,0.12); color: var(--accent); border-color: rgba(79,142,247,0.4); }
+  .imp-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  #fileInput { display: none; }
+  #importStatus { font-size: 12px; color: var(--accent2); margin-left: auto; }
+
+  /* ── FILTERS ── */
+  .filter-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+  .filter-row select {
+    background: var(--surface); border: 1px solid var(--border2);
+    color: var(--text); padding: 7px 12px; border-radius: var(--radius-sm);
+    font-size: 13px; cursor: pointer; outline: none;
+  }
+  .filter-row select:hover { border-color: var(--accent); }
+  .filter-label { font-size: 12px; color: var(--muted); }
+  .slicer-wrap { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+  .slicer {
+    font-size: 12px; padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); cursor: pointer; transition: all .15s;
+  }
+  .slicer.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .slicer:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+  /* ── KPI GRID ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.25rem; }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.1rem;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .kpi-card.c0::before { background: var(--accent); }
+  .kpi-card.c1::before { background: var(--accent2); }
+  .kpi-card.c2::before { background: var(--warn); }
+  .kpi-card.c3::before { background: #a78bfa; }
+  .kpi-card.c4::before { background: #34d399; }
+  .kpi-card.c5::before { background: var(--danger); }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .kpi-value { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+  .kpi-delta { font-size: 12px; margin-top: 4px; }
+  .kpi-delta.up { color: var(--accent2); }
+  .kpi-delta.dn { color: var(--danger); }
+  .kpi-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); opacity: .12; font-size: 36px; }
+
+  /* ── CHARTS LAYOUT ── */
+  .chart-row { display: grid; gap: 12px; margin-bottom: 12px; }
+  .chart-row.r1 { grid-template-columns: 1.6fr 1fr; }
+  .chart-row.r2 { grid-template-columns: 1fr 1fr; }
+  .chart-row.r3 { grid-template-columns: 1fr 1.4fr; }
+  @media (max-width: 768px) {
+    .chart-row.r1, .chart-row.r2, .chart-row.r3 { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.1rem;
+  }
+  .chart-title {
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;
+  }
+  .chart-title span { font-size: 11px; color: rgba(255,255,255,0.25); }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* ── PRODUCT LIST ── */
+  .prod-list { list-style: none; }
+  .prod-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .prod-item:last-child { border-bottom: none; }
+  .prod-rank {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--muted); flex-shrink: 0;
+  }
+  .prod-name { flex: 1; color: var(--text); }
+  .prod-bar-bg { width: 80px; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .prod-bar { height: 100%; background: var(--accent); border-radius: 2px; }
+  .prod-val { min-width: 58px; text-align: right; font-weight: 600; color: var(--text); }
+
+  /* ── DATA TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table.dtbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.dtbl thead th {
+    text-align: left; padding: 8px 10px;
+    color: var(--muted); border-bottom: 1px solid var(--border2);
+    font-weight: 500; white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+  }
+  table.dtbl tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  table.dtbl tbody tr:hover { background: rgba(255,255,255,0.03); }
+  table.dtbl td { padding: 8px 10px; color: var(--text); white-space: nowrap; }
+  .status-badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; font-weight: 500;
+  }
+  .status-badge.high { background: rgba(79,142,247,0.15); color: #7bb3fa; }
+  .status-badge.med  { background: rgba(245,166,35,0.15); color: #f5c060; }
+  .status-badge.low  { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+  /* ── UPLOAD DROP ZONE ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border2); border-radius: var(--radius);
+    padding: 2rem 1rem; text-align: center; cursor: pointer;
+    transition: all .2s;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(79,142,247,0.05); }
+  .upload-zone .uz-icon { font-size: 32px; margin-bottom: 8px; opacity: .4; }
+  .upload-zone p { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .upload-zone small { font-size: 11px; color: rgba(255,255,255,0.2); }
+
+  /* ── LEGEND ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── FOOTER ── */
+  .footer { text-align: center; padding: 2rem; font-size: 12px; color: rgba(255,255,255,0.15); margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot">📊</div>
+    Sales & Revenue Dashboard
+  </div>
+  <div class="topbar-right">
+    <span class="badge-intern">Thiranex Internship Task</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- IMPORT -->
+  <div class="import-section">
+    <span class="import-label">Data Source</span>
+    <button class="imp-btn active" id="demoBtn" onclick="loadDemo(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      Demo data
+    </button>
+    <button class="imp-btn" onclick="document.getElementById('fileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Import CSV / Excel
+    </button>
+    <button class="imp-btn" onclick="showDBInfo()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Connect Database
+    </button>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFile(this)">
+    <span id="importStatus"></span>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-row">
+    <span class="filter-label">Period:</span>
+    <select id="periodSel" onchange="applyFilters()">
+      <option value="all">All time</option>
+      <option value="q1">Q1 2024</option>
+      <option value="q2">Q2 2024</option>
+      <option value="q3">Q3 2024</option>
+      <option value="q4" selected>Q4 2024</option>
+    </select>
+    <span class="filter-label">Region:</span>
+    <select id="regionSel" onchange="applyFilters()">
+      <option value="all">All regions</option>
+      <option value="north">North</option>
+      <option value="south">South</option>
+      <option value="east">East</option>
+      <option value="west">West</option>
+    </select>
+    <span class="filter-label">Category:</span>
+    <select id="catSel" onchange="applyFilters()">
+      <option value="all">All categories</option>
+      <option value="electronics">Electronics</option>
+      <option value="apparel">Apparel</option>
+      <option value="food">Food &amp; Bev</option>
+      <option value="home">Home</option>
+    </select>
+    <span class="filter-label" style="margin-left:8px">Segment:</span>
+    <div class="slicer-wrap">
+      <button class="slicer active" onclick="toggleSlicer(this)">All</button>
+      <button class="slicer" onclick="toggleSlicer(this)">New customers</button>
+      <button class="slicer" onclick="toggleSlicer(this)">Returning</button>
+      <button class="slicer" onclick="toggleSlicer(this)">Enterprise</button>
+      <button class="slicer" onclick="toggleSlicer(this)">SMB</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- ROW 1: trend + category -->
+  <div class="chart-row r1">
+    <div class="chart-card">
+      <div class="chart-title">Monthly Revenue Trend <span>revenue vs orders</span></div>
+      <div class="chart-wrap" style="height:230px"><canvas id="trendChart" role="img" aria-label="Monthly revenue trend"></canvas></div>
+      <div class="legend" id="trendLegend"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sales by Category</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="catChart" role="img" aria-label="Sales by category donut"></canvas></div>
+      <div class="legend" id="catLegend"></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: regional + top products -->
+  <div class="chart-row r2">
+    <div class="chart-card">
+      <div class="chart-title">Regional Revenue vs Target</div>
+      <div class="chart-wrap" style="height:210px"><canvas id="regionChart" role="img" aria-label="Regional revenue vs target"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top Products by Revenue</div>
+      <ul class="prod-list" id="prodList"></ul>
+    </div>
+  </div>
+
+  <!-- ROW 3: upload + transactions -->
+  <div class="chart-row r3">
+    <div class="chart-card">
+      <div class="chart-title">Import Your Data</div>
+      <div class="upload-zone" id="dropZone"
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <div class="uz-icon">📂</div>
+        <p>Drop a CSV or Excel file here</p>
+        <small>Supports .csv — auto-detects date, product, region, amount columns</small>
+      </div>
+      <div style="margin-top:1rem;padding:1rem;background:rgba(255,255,255,0.03);border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500">📋 Sample CSV format:</p>
+        <code style="font-size:11px;color:rgba(255,255,255,0.35);display:block;line-height:1.8">
+          date,product,region,amount,category<br>
+          2024-01-05,Pro Laptop,North,2399,Electronics<br>
+          2024-01-08,Smart Watch,East,349,Electronics
+        </code>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Recent Transactions <span id="txCount"></span></div>
+      <div class="table-wrap">
+        <table class="dtbl">
+          <thead><tr><th>Date</th><th>Product</th><th>Region</th><th>Category</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">Sales & Revenue Dashboard · Thiranex Internship Task · Built with Chart.js + PapaParse</div>
+
+<script>
+// ── DEMO DATA ──
+const DEMO = {
+  kpis:[
+    {label:'Total Revenue',val:'$2.84M',delta:'+12.4% vs prev',dir:'up',icon:'💰',cls:'c0'},
+    {label:'Total Orders',val:'14,820',delta:'+8.1% vs prev',dir:'up',icon:'🛒',cls:'c1'},
+    {label:'Avg Order Value',val:'$191.6',delta:'+3.7% vs prev',dir:'up',icon:'🧾',cls:'c2'},
+    {label:'Gross Margin',val:'41.2%',delta:'-1.2% vs prev',dir:'dn',icon:'📉',cls:'c3'},
+    {label:'New Customers',val:'3,214',delta:'+21.5% vs prev',dir:'up',icon:'👥',cls:'c4'},
+    {label:'Churn Rate',val:'3.8%',delta:'-0.5% vs prev',dir:'up',icon:'↩️',cls:'c5'},
+  ],
+  trend:{
+    labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    revenue:[180,210,195,240,255,230,280,310,295,340,360,425],
+    orders:[820,910,850,1050,1120,980,1230,1380,1290,1510,1580,1900]
+  },
+  cat:{
+    labels:['Electronics','Apparel','Food & Bev','Home','Other'],
+    data:[38,24,18,13,7],
+    colors:['#4f8ef7','#22d3a5','#f5a623','#a78bfa','#5a5f70']
+  },
+  regions:{
+    labels:['North','South','East','West'],
+    revenue:[720,640,580,900],
+    target:[680,700,620,850]
+  },
+  products:[
+    {name:'Pro Laptop X1',val:'$642K',pct:100},
+    {name:'Wireless Buds Pro',val:'$418K',pct:65},
+    {name:'Smart Watch S3',val:'$331K',pct:52},
+    {name:'Running Jacket',val:'$212K',pct:33},
+    {name:'Coffee Blend Kit',val:'$178K',pct:28},
+    {name:'Desk Lamp Plus',val:'$154K',pct:24},
+  ],
+  tx:[
+    {date:'Dec 28',product:'Pro Laptop X1',region:'West',cat:'Electronics',amount:'$2,399',status:'high'},
+    {date:'Dec 27',product:'Smart Watch S3',region:'North',cat:'Electronics',amount:'$349',status:'med'},
+    {date:'Dec 27',product:'Wireless Buds',region:'East',cat:'Electronics',amount:'$199',status:'med'},
+    {date:'Dec 26',product:'Running Jacket',region:'South',cat:'Apparel',amount:'$89',status:'low'},
+    {date:'Dec 25',product:'Coffee Blend Kit',region:'West',cat:'Food & Bev',amount:'$45',status:'low'},
+    {date:'Dec 24',product:'Pro Laptop X1',region:'North',cat:'Electronics',amount:'$2,399',status:'high'},
+    {date:'Dec 24',product:'Desk Lamp Plus',region:'East',cat:'Home',amount:'$79',status:'low'},
+    {date:'Dec 23',product:'Smart Watch S3',region:'South',cat:'Electronics',amount:'$349',status:'med'},
+  ]
+};
+
+let trendChart, catChart, regionChart;
+
+// ── KPI RENDER ──
+function renderKPIs(kpis){
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k=>`
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.val}</div>
+      <div class="kpi-delta ${k.dir}">
+        ${k.dir==='up'?'▲':'▼'} ${k.delta}
+      </div>
+      <div class="kpi-icon">${k.icon}</div>
+    </div>`).join('');
+}
+
+// ── TREND CHART ──
+function initTrendChart(d){
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:d.labels,
+      datasets:[
+        {label:'Revenue ($K)',data:d.revenue,borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,0.1)',
+         borderWidth:2,pointRadius:3,pointBackgroundColor:'#4f8ef7',tension:0.4,fill:true,yAxisID:'y'},
+        {label:'Orders',data:d.orders,borderColor:'#22d3a5',backgroundColor:'transparent',
+         borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#22d3a5',tension:0.4,
+         borderDash:[5,4],yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,
+        callbacks:{label:c=>c.datasetIndex===0?'Revenue: $'+c.raw+'K':'Orders: '+c.raw}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b90a0',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b90a0',font:{size:11},callback:v=>'$'+v+'K'},position:'left'},
+        y2:{grid:{display:false},ticks:{color:'#22d3a5',font:{size:11}},position:'right'}
+      }
+    }
+  });
+  document.getElementById('trendLegend').innerHTML = `
+    <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div>Revenue ($K)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22d3a5;opacity:.6"></div>Orders (right axis)</div>`;
+}
+
+// ── CATEGORY CHART ──
+function initCatChart(d){
+  const ctx = document.getElementById('catChart').getContext('2d');
+  if(catChart) catChart.destroy();
+  catChart = new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:d.labels,datasets:[{data:d.data,backgroundColor:d.colors,borderWidth:3,borderColor:'#1e2130',hoverOffset:8}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}%`}}}
+    }
+  });
+  document.getElementById('catLegend').innerHTML = d.labels.map((l,i)=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${d.colors[i]}"></div>${l} ${d.data[i]}%</div>`
+  ).join('');
+}
+
+// ── REGION CHART ──
+function initRegionChart(d){
+  const ctx = document.getElementById('regionChart').getContext('2d');
+  if(regionChart) regionChart.destroy();
+  regionChart = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:d.labels,
+      datasets:[
+        {label:'Revenue',data:d.revenue,backgroundColor:'#4f8ef7',borderRadius:5,barPercentage:.5},
+        {label:'Target',data:d.target,backgroundColor:'rgba(255,255,255,0.1)',borderRadius:5,barPercentage:.5}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $${c.raw}K`}}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#8b90a0',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8b90a0',font:{size:11},callback:v=>'$'+v+'K'}}
+      }
+    }
+  });
+}
+
+// ── PRODUCTS ──
+function renderProducts(prods){
+  document.getElementById('prodList').innerHTML = prods.map((p,i)=>`
+    <li class="prod-item">
+      <div class="prod-rank">${i+1}</div>
+      <div class="prod-name">${p.name}</div>
+      <div class="prod-bar-bg"><div class="prod-bar" style="width:${p.pct}%"></div></div>
+      <div class="prod-val">${p.val}</div>
+    </li>`).join('');
+}
+
+// ── TRANSACTIONS ──
+function renderTx(txs){
+  document.getElementById('txCount').textContent = txs.length+' records';
+  document.getElementById('txBody').innerHTML = txs.map(t=>`
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.product}</td>
+      <td>${t.region}</td>
+      <td>${t.cat||'—'}</td>
+      <td style="font-weight:600">${t.amount}</td>
+      <td><span class="status-badge ${t.status}">${t.status==='high'?'High value':t.status==='med'?'Medium':'Standard'}</span></td>
+    </tr>`).join('');
+}
+
+// ── LOAD DEMO ──
+function loadDemo(btn){
+  document.querySelectorAll('.imp-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('importStatus').textContent='';
+  renderKPIs(DEMO.kpis);
+  renderProducts(DEMO.products);
+  renderTx(DEMO.tx);
+  setTimeout(()=>{
+    initTrendChart(DEMO.trend);
+    initCatChart(DEMO.cat);
+    initRegionChart(DEMO.regions);
+  },60);
+}
+
+// ── FILTERS ──
+function applyFilters(){
+  const m = {q1:.82,q2:.88,q3:.94,q4:1,all:1.12}[document.getElementById('periodSel').value]||1;
+  document.querySelectorAll('.kpi-value').forEach((el,i)=>{
+    const raw = DEMO.kpis[i].val;
+    if(raw.includes('M')) el.textContent='$'+(parseFloat(raw.slice(1))*m).toFixed(2)+'M';
+    else if(raw.startsWith('$') && raw.includes('.')) el.textContent='$'+(parseFloat(raw.slice(1))*m).toFixed(1);
+    else if(!isNaN(parseFloat(raw.replace(/[,$]/g,'')))) el.textContent=Math.round(parseFloat(raw.replace(/,/g,'').replace('$',''))*m).toLocaleString();
+  });
+  if(trendChart){
+    trendChart.data.datasets[0].data = DEMO.trend.revenue.map(v=>Math.round(v*m));
+    trendChart.update();
+  }
+}
+
+function toggleSlicer(btn){
+  document.querySelectorAll('.slicer').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── FILE IMPORT ──
+function handleFile(input){ if(input.files[0]) parseCSV(input.files[0]); }
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(f) parseCSV(f);
+}
+function parseCSV(file){
+  document.getElementById('importStatus').textContent='Parsing '+file.name+'…';
+  Papa.parse(file,{
+    header:true,skipEmptyLines:true,
+    complete:function(r){
+      const rows=r.data;
+      const keys=Object.keys(rows[0]||{});
+      const amtKey=keys.find(k=>/amount|revenue|sales|price|value/i.test(k))||keys[0];
+      const nameKey=keys.find(k=>/product|name|item|desc/i.test(k))||keys[1]||keys[0];
+      const dateKey=keys.find(k=>/date|day|time/i.test(k));
+      const regionKey=keys.find(k=>/region|area|zone|loc/i.test(k));
+      const catKey=keys.find(k=>/cat|type|dept/i.test(k));
+      const txs=rows.slice(0,10).map(row=>({
+        date:dateKey?String(row[dateKey]).slice(0,10):'—',
+        product:String(row[nameKey]||'').slice(0,22),
+        region:regionKey?String(row[regionKey]).slice(0,10):'N/A',
+        cat:catKey?String(row[catKey]).slice(0,12):'—',
+        amount:'$'+Number(row[amtKey]||0).toLocaleString(),
+        status:Number(row[amtKey]||0)>500?'high':Number(row[amtKey]||0)>100?'med':'low'
+      }));
+      renderTx(txs);
+      const total=rows.reduce((s,r)=>s+Number(r[amtKey]||0),0);
+      document.getElementById('importStatus').textContent=
+        '✓ '+rows.length+' rows loaded | Total: $'+total.toLocaleString();
+      document.querySelectorAll('.imp-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.imp-btn')[1].classList.add('active');
+    },
+    error:()=>{ document.getElementById('importStatus').textContent='⚠ Could not parse file. Use CSV format.'; }
+  });
+}
+
+function showDBInfo(){
+  alert('Database Connection\n\nFor a live database connection, you would typically:\n1. Set up a backend API (Node.js / Python Flask)\n2. Connect to MySQL, PostgreSQL, or MongoDB\n3. Expose a /api/sales endpoint\n4. Fetch data with JavaScript fetch()\n\nFor this static GitHub Pages deployment, CSV import is the easiest approach.');
+}
+
+// ── INIT ──
+window.addEventListener('load', ()=>{ loadDemo(document.getElementById('demoBtn')); });
+</script>
+</body>
+</html>
